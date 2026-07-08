@@ -114,6 +114,51 @@ def quotes(market: str = "tr"):
         raise HTTPException(status_code=502, detail=f"upstream fetch failed: {e}")
 
 
+@app.get("/search")
+def search(q: str, market: str = "tr"):
+    """
+    Search for stock symbols by name or ticker.
+    market='tr' searches BIST, market='us' searches NASDAQ/NYSE.
+    """
+    exchange = "BIST" if market == "tr" else None
+    key = f"search:{market}:{q}"
+
+    def builder():
+        results = bp.search(q, type="stock", exchange=exchange, limit=15)
+        # bp.search can return plain symbol strings or dicts depending on args;
+        # normalize to a simple list of {symbol, name} for the frontend.
+        out = []
+        for r in results:
+            if isinstance(r, dict):
+                out.append({
+                    "symbol": r.get("symbol") or r.get("ticker"),
+                    "name": r.get("name") or r.get("description") or r.get("symbol"),
+                })
+            else:
+                out.append({"symbol": r, "name": r})
+        return out
+
+    try:
+        return clean(cached(key, builder))
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"search failed: {e}")
+
+
+@app.get("/quote/{symbol}")
+def single_quote(symbol: str):
+    """Fetch one symbol on demand — used when the user picks a search result
+    that isn't already in the default watchlist."""
+    key = f"quote:{symbol}"
+
+    def builder():
+        return build_row(symbol)
+
+    try:
+        return clean(cached(key, builder))
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"quote fetch failed for {symbol}: {e}")
+
+
 FUND_TYPE_MAP = {
     "hisse": None,       # borsapy doesn't filter by asset class directly; see note below
     "borclanma": None,
