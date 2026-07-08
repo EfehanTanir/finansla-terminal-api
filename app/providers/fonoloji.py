@@ -537,12 +537,14 @@ def get_fund_history(code: str) -> list[HistoryPoint]:
                 continue
         if not raw:
             return _mock_history()
-        pts = raw.get("items", raw.get("history", raw.get("prices", raw))) if isinstance(raw, dict) else raw
+        pts = (raw.get("points") or raw.get("items") or raw.get("history")
+               or raw.get("prices") or raw) if isinstance(raw, dict) else raw
         out: list[HistoryPoint] = []
         for p in pts:
             if isinstance(p, dict):
-                out.append(HistoryPoint(date=str(_first(p, "date", "d", default="")),
-                                        price=_f(_first(p, "price", "value", "close", "p"))))
+                out.append(HistoryPoint(
+                    date=str(_first(p, "date", "d", "t", "time", "timestamp", default="")),
+                    price=_f(_first(p, "price", "value", "close", "nav", "p", "v"))))
             elif isinstance(p, (list, tuple)) and len(p) >= 2:
                 out.append(HistoryPoint(date=str(p[0]), price=_f(p[1])))
         return out or _mock_history()
