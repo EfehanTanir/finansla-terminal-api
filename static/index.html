@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Finansla Terminal — TEFAS fonları, BIST hisseleri ve piyasa</title>
+  <meta name="description" content="TEFAS fonlarını, BIST hisselerini ve makro veriyi tek ekranda toplayan akıllı finans terminali." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/assets/style.css" />
+</head>
+<body>
+  <div class="disclaimer" id="disclaimer">
+    <strong>Yatırım tavsiyesi değildir.</strong>
+    Tüm rakamlar TEFAS'ın halka açık verisinden üretilmiştir; kararların sorumluluğu sana aittir.
+  </div>
+
+  <header class="topbar">
+    <a class="brand" href="/">
+      <span class="brand-mark">F</span>
+      <span class="brand-word">Finansla</span>
+    </a>
+    <nav class="nav">
+      <a href="/fonlar">Fonlar</a>
+      <a href="#hisseler">Hisseler</a>
+      <a href="#akis">Para akışı</a>
+      <a href="#makro">Makro</a>
+      <a href="#araclar">Araçlar</a>
+    </nav>
+    <div class="topbar-right">
+      <div class="live-dot" title="Canlı"><span></span>CANLI</div>
+      <button class="ghost-btn" id="refreshBtn" title="Yenile">Yenile</button>
+    </div>
+  </header>
+
+  <!-- Live ticker tape -->
+  <div class="tape" aria-label="Canlı piyasa şeridi">
+    <div class="tape-label">CANLI</div>
+    <div class="tape-viewport"><div class="tape-track" id="tapeTrack"></div></div>
+  </div>
+
+  <main>
+    <!-- Hero -->
+    <section class="hero">
+      <div class="hero-left">
+        <h1 class="hero-title">
+          Tüm fonlar, hisseler ve <span class="grad">piyasa tek ekranda.</span>
+        </h1>
+        <p class="hero-sub">
+          TEFAS fonlarını, BIST hisselerini, KAP bildirimlerini ve makro veriyi tek panelde
+          topluyoruz. Ara, kıyasla, takip et — sayılar canlı ve renk-kodlu.
+        </p>
+        <div class="search">
+          <input id="searchInput" type="text" placeholder="Fon kodu, hisse ya da kategori ara…" />
+          <button class="primary-btn">Ara</button>
+        </div>
+        <div class="pop">
+          <span class="pop-label">Popüler</span>
+          <a class="chip" href="/fon/RIH">RIH</a><a class="chip" href="/fon/TLY">TLY</a>
+          <a class="chip" href="/fon/VGA">VGA</a><a class="chip" href="/fon/PRY">PRY</a><a class="chip" href="/fon/SNY">SNY</a>
+        </div>
+      </div>
+
+      <!-- Market pulse AI card (signature) -->
+      <aside class="pulse-card" id="pulseCard">
+        <div class="pulse-head">
+          <div class="pulse-title"><span class="pulse-live"></span> <span id="pulseTitle">Piyasanın Nabzı</span></div>
+          <div class="pulse-badge">FINANSLA AI</div>
+        </div>
+        <div class="pulse-body" id="pulseBody"></div>
+        <div class="pulse-stats" id="pulseStats"></div>
+      </aside>
+    </section>
+
+    <!-- Hero stats -->
+    <section class="stat-row" id="statRow"></section>
+
+    <!-- Gainers / Losers -->
+    <section class="two-col" id="fonlar">
+      <div class="panel">
+        <div class="panel-head up"><span class="tick"></span> EN ÇOK YÜKSELEN</div>
+        <ol class="movers" id="gainers"></ol>
+      </div>
+      <div class="panel">
+        <div class="panel-head down"><span class="tick"></span> EN ÇOK DÜŞEN</div>
+        <ol class="movers" id="losers"></ol>
+      </div>
+    </section>
+
+    <!-- Spotlight -->
+    <section class="spotlight" id="spotlight"></section>
+
+    <!-- Heatmap + Flows -->
+    <div class="section-eyebrow">SON 1 YIL · ORTALAMA GETİRİ</div>
+    <h2 class="section-title" id="akis">Kategoriler ve para akışı</h2>
+    <section class="two-col">
+      <div class="panel">
+        <div class="panel-head">KATEGORİ ISI HARİTASI</div>
+        <div class="heatmap" id="heatmap"></div>
+        <div class="heat-legend"><span>düşük</span><i class="heat-bar"></i><span>yüksek</span></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head">EN ÇOK PARA GİREN FONLAR <small>Son 30 gün · net TL girişi</small></div>
+        <div class="flows" id="flows"></div>
+      </div>
+    </section>
+
+    <!-- Top funds -->
+    <div class="section-eyebrow" id="hisseler">BÜYÜKLÜĞE GÖRE</div>
+    <h2 class="section-title">En büyük fonlar</h2>
+    <section class="panel top-funds" id="topFunds"></section>
+
+    <!-- Tools -->
+    <div class="section-eyebrow" id="araclar">DERİNLEŞ</div>
+    <h2 class="section-title">Analiz araçları</h2>
+    <section class="tools">
+      <div class="tool"><b>Portföy X-Ray</b><span>Portföyünü varlık, sektör ve risk ekseninde çöz.</span></div>
+      <div class="tool"><b>Fon DNA</b><span>Bir fonun faktör ve varlık genetiğini gör.</span></div>
+      <div class="tool"><b>Karşılaştır</b><span>Fonları ve yöneticileri yan yana kıyasla.</span></div>
+      <div class="tool"><b>Geri-test</b><span>Strateji senaryolarını geçmiş veriyle test et.</span></div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="brand"><span class="brand-mark">F</span><span class="brand-word">Finansla</span></div>
+    <p>Veriler TEFAS'ın halka açık kaynaklarından derlenir. Yatırım tavsiyesi değildir.
+       <span id="asOf"></span></p>
+  </footer>
+
+  <script src="/assets/app.js"></script>
+</body>
+</html>

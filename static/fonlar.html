@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fonlar — TEFAS fon tarayıcı · Finansla</title>
+  <meta name="description" content="TEFAS fonlarını büyüklük, getiri ve risk ekseninde tara ve kıyasla." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/assets/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/"><span class="brand-mark">F</span><span class="brand-word">Finansla</span></a>
+    <nav class="nav">
+      <a href="/fonlar" class="active">Fonlar</a>
+      <a href="/#akis">Para akışı</a>
+      <a href="/#hisseler">Büyük fonlar</a>
+    </nav>
+    <div class="topbar-right">
+      <div class="live-dot"><span></span>CANLI</div>
+    </div>
+  </header>
+
+  <main>
+    <div class="section-eyebrow" style="margin-top:40px">DİZİN</div>
+    <h1 class="section-title" style="font-size:34px">Fonlar</h1>
+    <p class="hero-sub" style="margin-top:-8px">
+      TEFAS fon tarayıcı — büyüklük, aylık ve yıllık getiri, risk skoru ve yatırımcı sayısı tek tabloda.
+    </p>
+
+    <div class="screener-controls">
+      <div class="search" style="max-width:420px;margin:0">
+        <input id="q" type="text" placeholder="Fon kodu veya adı ara…" />
+      </div>
+      <div class="sort-tabs" id="sortTabs">
+        <button data-sort="aum" class="active">Büyüklük</button>
+        <button data-sort="return_1y">1Y getiri</button>
+        <button data-sort="return_1m">1A getiri</button>
+      </div>
+    </div>
+
+    <section class="panel" style="padding:6px 22px;margin-top:18px">
+      <div class="fund-table-head">
+        <span>Fon</span><span>Fiyat</span><span>1A</span><span>1Y</span>
+        <span>Büyüklük</span><span>Risk</span>
+      </div>
+      <div id="rows"><div class="loading">Yükleniyor…</div></div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="brand"><span class="brand-mark">F</span><span class="brand-word">Finansla</span></div>
+    <p>Veriler TEFAS'ın halka açık kaynaklarından derlenir. Yatırım tavsiyesi değildir.</p>
+  </footer>
+  <script src="/assets/pages.js"></script>
+  <script>FinanslaPages.initScreener();</script>
+</body>
+</html>

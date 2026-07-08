@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: finansla-terminal
+    runtime: python
+    plan: free
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: FONOLOJI_API_KEY
+        sync: false          # set in the Render dashboard; empty = mock mode
+      - key: FONOLOJI_BASE_URL
+        value: https://fonoloji.com/v1
+      - key: FONOLOJI_AUTH_HEADER
+        value: X-API-Key
+      - key: FONOLOJI_AUTH_SCHEME
+        value: ""            # raw key, no "Bearer" prefix
+      - key: BRAND_NAME
+        value: Finansla
+      - key: ALLOWED_ORIGINS
+        value: "https://terminal.finansla.net,https://finansla.net"
+      - key: CACHE_TTL
+        value: "60"

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fon · Finansla</title>
+  <meta name="description" content="TEFAS fon analizi — fiyat grafiği, portföy dağılımı, Sharpe ve reel getiri." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/assets/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/"><span class="brand-mark">F</span><span class="brand-word">Finansla</span></a>
+    <nav class="nav">
+      <a href="/fonlar">Fonlar</a>
+      <a href="/#akis">Para akışı</a>
+      <a href="/#hisseler">Büyük fonlar</a>
+    </nav>
+    <div class="topbar-right"><div class="live-dot"><span></span>CANLI</div></div>
+  </header>
+
+  <main id="fund" class="fund-page">
+    <div class="loading" style="padding:60px 0">Fon yükleniyor…</div>
+  </main>
+
+  <footer class="footer">
+    <div class="brand"><span class="brand-mark">F</span><span class="brand-word">Finansla</span></div>
+    <p>Bu özet TEFAS'ın halka açık verisinden otomatik derlenir; yatırım tavsiyesi değildir.
+       Geçmiş getiri gelecekteki getirinin garantisi değildir.</p>
+  </footer>
+  <script src="/assets/pages.js"></script>
+  <script>FinanslaPages.initFund();</script>
+</body>
+</html>
