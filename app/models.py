@@ -121,4 +121,4 @@ class FundDetail(BaseModel):
     investors: int = 0
     allocation: list[AllocSlice] = []
     beats: list[str] = []               # e.g. ["TÜFE", "Mevduat"]
-    history: list[HistoryPoint] = []    
+    history: list[HistoryPoint] = []
