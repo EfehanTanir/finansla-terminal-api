@@ -274,6 +274,30 @@ def single_quote(symbol: str):
         raise HTTPException(status_code=502, detail=f"quote fetch failed for {symbol}: {e}")
 
 
+@app.get("/debug-tefas")
+def debug_tefas():
+    """Temporary diagnostic endpoint: returns one raw fund row exactly as
+    TEFAS's list API sends it, plus the outcome of a price-history fetch.
+    Remove once field mapping is confirmed."""
+    result = {}
+    try:
+        rows = _tefas_list_rows("YAT")
+        result["list_row_count"] = len(rows)
+        result["first_raw_row"] = rows[0] if rows else None
+    except Exception as e:
+        result["list_error"] = repr(e)
+
+    try:
+        start = (date.today() - timedelta(days=90)).isoformat()
+        hist = tefas_crawler.fetch(start=start, name="DGF")
+        result["history_rows"] = len(hist)
+        result["history_head"] = hist.head(3).to_dict(orient="records") if not hist.empty else []
+    except Exception as e:
+        result["history_error"] = repr(e)
+
+    return clean(result)
+
+
 # (fund category mapping now comes directly from TEFAS's fonTuruAciklama field)
 
 
