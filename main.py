@@ -17,7 +17,21 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from functools import lru_cache
 import time
+import math
 import borsapy as bp
+
+
+def clean(obj):
+    """Recursively replace NaN/inf with None so json.dumps doesn't crash.
+    TEFAS/BIST data frequently has missing fields (e.g. return_3y for new funds)
+    that pandas represents as NaN, which is not valid JSON."""
+    if isinstance(obj, float):
+        return None if (math.isnan(obj) or math.isinf(obj)) else obj
+    if isinstance(obj, dict):
+        return {k: clean(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [clean(v) for v in obj]
+    return obj
 
 app = FastAPI(title="Finansla Terminal API")
 
@@ -95,7 +109,7 @@ def quotes(market: str = "tr"):
         return rows
 
     try:
-        return cached(key, builder)
+        return clean(cached(key, builder))
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"upstream fetch failed: {e}")
 
@@ -126,6 +140,12 @@ def funds(min_return_1y: float | None = None, limit: int = 20):
         return df.to_dict(orient="records")
 
     try:
-        return cached(key, builder)
+        return clean(cached(key, builder))
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"upstream fetch failed: {e}")
+
+
+# NOTE: build_row() below also needs sanitizing, since BIST/US quote data
+# can carry NaN in the same way (e.g. missing volume or change_pct fields).
+# clean() is applied at the response boundary above, so it covers both
+# /quotes and /funds without needing to touch build_row() itself.
