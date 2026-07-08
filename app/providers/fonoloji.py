@@ -443,17 +443,46 @@ def _map_fund_list_item(f: dict) -> FundListItem:
     )
 
 
+def _unwrap_fund(raw, code: str):
+    """Single-fund responses may be flat or wrapped; find the object with a code."""
+    if not isinstance(raw, dict):
+        return None
+    if raw.get("code"):
+        return raw
+    for k in ("fund", "data", "item", "result"):
+        v = raw.get(k)
+        if isinstance(v, dict) and v.get("code"):
+            return v
+    for v in raw.values():
+        if isinstance(v, dict) and v.get("code"):
+            return v
+    return None
+
+
 def get_fund(code: str) -> FundDetail | None:
     if not settings.use_live_data:
         return _mock_fund_detail(code)
+    code = code.upper()
+    f = None
+    # 1) try the single-fund endpoint (shape may vary -> unwrap)
     try:
-        raw = _get(f"{_ENDPOINTS['funds']}/{code}")
-        f = raw.get("fund", raw) if isinstance(raw, dict) else {}
-        if not f.get("code"):
-            return _mock_fund_detail(code)
+        f = _unwrap_fund(_get(f"{_ENDPOINTS['funds']}/{code}"), code)
+    except Exception as exc:  # noqa: BLE001
+        print(f"[fonoloji] single fund {code} failed: {exc}")
+    # 2) fallback: scan the list endpoint (confirmed shape, has all fields)
+    if not f or not f.get("code"):
+        try:
+            items = _get(f"{_ENDPOINTS['funds']}?limit=600").get("items", [])
+            f = next((x for x in items if str(x.get("code", "")).upper() == code), None)
+        except Exception as exc:  # noqa: BLE001
+            print(f"[fonoloji] list fallback for {code} failed: {exc}")
+    if not f or not f.get("code"):
+        print(f"[fonoloji] fund {code} not found live -> mock")
+        return _mock_fund_detail(code)
+    try:
         return _map_fund_detail(f, code)
     except Exception as exc:  # noqa: BLE001
-        print(f"[fonoloji] fund {code} failed -> mock: {exc}")
+        print(f"[fonoloji] map fund {code} failed -> mock: {exc}")
         return _mock_fund_detail(code)
 
 
@@ -495,8 +524,20 @@ def get_fund_history(code: str) -> list[HistoryPoint]:
     if not settings.use_live_data:
         return _mock_history()
     try:
-        raw = _get(f"{_ENDPOINTS['funds']}/{code}/history")
-        pts = raw.get("items", raw.get("history", raw)) if isinstance(raw, dict) else raw
+        raw = None
+        for hp in (f"{_ENDPOINTS['funds']}/{code}/history",
+                   f"{_ENDPOINTS['funds']}/{code}/chart",
+                   f"{_ENDPOINTS['funds']}/{code}/prices",
+                   f"{_ENDPOINTS['funds']}/{code}/nav"):
+            try:
+                raw = _get(hp)
+                if raw:
+                    break
+            except Exception:  # noqa: BLE001
+                continue
+        if not raw:
+            return _mock_history()
+        pts = raw.get("items", raw.get("history", raw.get("prices", raw))) if isinstance(raw, dict) else raw
         out: list[HistoryPoint] = []
         for p in pts:
             if isinstance(p, dict):
@@ -551,3 +592,36 @@ def _mock_fund_detail(code: str) -> FundDetail:
                     AllocSlice(label="Nakit / Mevduat", pct=14.8), AllocSlice(label="Özel Sektör", pct=2.6)],
         beats=["TÜFE", "Mevduat"], history=_mock_history(),
     )
+
+
+def diagnostics() -> dict:
+    """Non-sensitive health probe: which live endpoints respond, and a sample.
+    Never returns the API key. Useful at /api/debug to see what's failing."""
+    out = {"live_data": settings.use_live_data, "base_url": settings.fonoloji_base_url,
+           "auth_header": settings.fonoloji_auth_header, "endpoints": {}}
+    if not settings.use_live_data:
+        out["note"] = "FONOLOJI_API_KEY not set -> serving mock data"
+        return out
+    checks = {
+        "market/live": _ENDPOINTS["market_live"],
+        "summary/today": _ENDPOINTS["summary_today"],
+        "categories": _ENDPOINTS["categories"],
+        "insights/flow": _ENDPOINTS["flow"],
+        "funds?sort=aum": f"{_ENDPOINTS['funds']}?sort=aum&order=desc&limit=1",
+        "funds/TLY": f"{_ENDPOINTS['funds']}/TLY",
+        "funds/TLY/history": f"{_ENDPOINTS['funds']}/TLY/history",
+    }
+    import time as _t
+    for name, path in checks.items():
+        try:
+            _cache.pop(path, None)
+            t0 = _t.time()
+            with _client() as c:
+                r = c.get(path)
+            body = r.json() if r.headers.get("content-type", "").startswith("application/json") else {}
+            top_keys = list(body.keys())[:6] if isinstance(body, dict) else f"list[{len(body)}]"
+            out["endpoints"][name] = {"status": r.status_code, "ms": int((_t.time()-t0)*1000),
+                                       "top_keys": top_keys}
+        except Exception as exc:  # noqa: BLE001
+            out["endpoints"][name] = {"error": str(exc)[:200]}
+    return out

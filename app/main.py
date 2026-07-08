@@ -39,6 +39,11 @@ def health() -> dict:
     return {"status": "ok", "brand": settings.brand_name, "live_data": settings.use_live_data}
 
 
+@app.get("/api/debug")
+def debug() -> dict:
+    return fonoloji.diagnostics()
+
+
 @app.get("/api/dashboard", response_model=Dashboard)
 def dashboard() -> Dashboard:
     return fonoloji.get_dashboard()
