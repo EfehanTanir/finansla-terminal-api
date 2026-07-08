@@ -20,14 +20,33 @@ import time
 import math
 import borsapy as bp
 import yfinance as yf
-from tefas import Crawler
+import requests
 from datetime import date, timedelta
 import os
 import json
 import asyncio
 import threading
 
-tefas_crawler = Crawler()
+# ---------------- Fonoloji (TEFAS fund data) ----------------
+# Set FONOLOJI_API_KEY in Render's Environment tab. Free tier: 15k req/month.
+FONOLOJI_KEY = os.environ.get("FONOLOJI_API_KEY", "")
+FONOLOJI_BASE = "https://fonoloji.com/v1"
+
+
+def fonoloji_get(path, params=None):
+    r = requests.get(
+        f"{FONOLOJI_BASE}{path}",
+        params=params or {},
+        headers={"X-API-Key": FONOLOJI_KEY},
+        timeout=15,
+    )
+    r.raise_for_status()
+    return r.json()
+
+
+def pct(v):
+    """Fonoloji returns fractions (0.0914 = +9.14%); convert to percent."""
+    return round(float(v) * 100, 2) if v is not None else None
 
 # ---------------- AIS live ship tracking (aisstream.io) ----------------
 # The API key is read from the environment — set AISSTREAM_API_KEY in
@@ -274,140 +293,94 @@ def single_quote(symbol: str):
         raise HTTPException(status_code=502, detail=f"quote fetch failed for {symbol}: {e}")
 
 
-@app.get("/debug-tefas")
-def debug_tefas():
-    """Temporary diagnostic endpoint: returns one raw fund row exactly as
-    TEFAS's list API sends it, plus the outcome of a price-history fetch.
-    Remove once field mapping is confirmed."""
-    result = {}
-    try:
-        rows = _tefas_list_rows("YAT")
-        result["list_row_count"] = len(rows)
-        result["first_raw_row"] = rows[0] if rows else None
-    except Exception as e:
-        result["list_error"] = repr(e)
 
-    try:
-        start = (date.today() - timedelta(days=90)).isoformat()
-        hist = tefas_crawler.fetch(start=start, name="DGF")
-        result["history_rows"] = len(hist)
-        result["history_head"] = hist.head(3).to_dict(orient="records") if not hist.empty else []
-    except Exception as e:
-        result["history_error"] = repr(e)
+# ---------------- TEFAS funds via Fonoloji API ----------------
 
-    return clean(result)
-
-
-# (fund category mapping now comes directly from TEFAS's fonTuruAciklama field)
-
-
-def _tefas_list_rows(kind: str = "YAT"):
-    """
-    One call to TEFAS's return-based list endpoint. Returns raw rows that
-    include fund code, name and period returns (1A/3A/6A/YB/1Y/3Y/5Y).
-    Field names come from the tefas.gov.tr API and may vary — the
-    normalizer below tries several candidate keys per field.
-    """
-    payload = {
-        "dil": "TR", "fonTipi": kind, "kurucuKodu": None, "sfonTurKod": None,
-        "fonTurAciklama": None, "islem": 1, "fonTurKod": None, "fonGrubu": None,
-        "donemGetiri1a": "1", "donemGetiri3a": "1", "donemGetiri6a": "1",
-        "donemGetiri1y": "1", "donemGetiriyb": "1", "donemGetiri3y": "1",
-        "donemGetiri5y": "1", "basTarih": None, "bitTarih": None,
-        "calismaTipi": 2, "getiriOrani": "1",
-    }
-    return tefas_crawler._do_post(tefas_crawler.list_endpoint, payload)
-
-
-def _pick(row, *keys):
-    for k in keys:
-        if k in row and row[k] is not None:
-            return row[k]
-    return None
+PERIOD_MAP = {1: "1m", 3: "3m", 6: "6m", 12: "1y", 36: "5y", 60: "5y"}
 
 
 @app.get("/funds")
-def funds(kind: str = "YAT", limit: int = 100):
-    """
-    All TEFAS funds with period returns, from the official tefas.gov.tr API
-    (one request). kind: YAT (yatırım), EMK (emeklilik), BYF (borsa yatırım).
-    """
-    key = f"funds:{kind}:{limit}"
+def funds(limit: int = 100, category: str | None = None, sort: str | None = None):
+    """All TEFAS funds from Fonoloji, with period returns already computed."""
+    key = f"funds:{limit}:{category}:{sort}"
 
     def builder():
-        rows = _tefas_list_rows(kind)
+        params = {"limit": limit}
+        if category:
+            params["category"] = category
+        if sort:
+            params["sort"] = sort
+        data = fonoloji_get("/funds", params)
+        rows = data if isinstance(data, list) else data.get("funds") or data.get("data") or []
         out = []
-        for r in rows[:limit]:
+        for f in rows:
             out.append({
-                "code": _pick(r, "fonKodu", "FONKODU"),
-                "name": _pick(r, "fonAdi", "fonUnvan", "FONADI"),
-                "founder": _pick(r, "kurucuAdi", "kurucuKodu"),
-                "fund_type": _pick(r, "fonTuruAciklama", "fonTurAciklama", "fonTipi"),
-                "return_1m": _pick(r, "getiri1A", "donemGetiri1a", "GETIRI1A"),
-                "return_3m": _pick(r, "getiri3A", "donemGetiri3a"),
-                "return_6m": _pick(r, "getiri6A", "donemGetiri6a"),
-                "return_ytd": _pick(r, "getiriYB", "donemGetiriyb"),
-                "return_1y": _pick(r, "getiri1Y", "donemGetiri1y"),
-                "return_3y": _pick(r, "getiri3Y", "donemGetiri3y"),
-                "return_5y": _pick(r, "getiri5Y", "donemGetiri5y"),
-                "_raw_keys": list(r.keys()) if not out else None,  # debug aid on first row only
+                "code": f.get("code"),
+                "name": f.get("name"),
+                "founder": f.get("management_company"),
+                "fund_type": f.get("category"),
+                "price": f.get("current_price"),
+                "risk_score": f.get("risk_score"),
+                "return_1m": pct(f.get("return_1m")),
+                "return_3m": pct(f.get("return_3m")),
+                "return_6m": pct(f.get("return_6m")),
+                "return_ytd": pct(f.get("return_ytd")),
+                "return_1y": pct(f.get("return_1y")),
+                "aum": f.get("aum"),
             })
         return out
 
     try:
         return clean(cached(key, builder))
     except Exception as e:
-        raise HTTPException(status_code=502, detail=f"TEFAS list fetch failed: {e}")
+        raise HTTPException(status_code=502, detail=f"Fonoloji funds fetch failed: {e}")
 
 
 @app.get("/fund/{code}")
 def fund_detail(code: str, months: int = 12):
-    """
-    One fund's detail: latest price, daily change, price history for charting,
-    and its period returns row from the list endpoint.
-    """
+    """One fund's full detail from Fonoloji: metrics, price history, AI summary."""
     code = code.upper().strip()
-    key = f"fund:{code}:{months}"
+    period = PERIOD_MAP.get(months, "1y")
+    key = f"fund:{code}:{period}"
 
     def builder():
-        start = (date.today() - timedelta(days=months * 30)).isoformat()
-        hist = tefas_crawler.fetch(start=start, name=code)
-        if hist.empty:
-            raise ValueError(f"no data for fund {code}")
-        hist = hist.sort_values("date")
-        prices = [round(float(p), 6) for p in hist["price"].tolist()]
-        dates = [str(d) for d in hist["date"].tolist()]
+        detail = fonoloji_get(f"/funds/{code}")
+        fund = detail.get("fund", detail)
+        hist = fonoloji_get(f"/funds/{code}/history", {"period": period})
+        points = hist.get("points", [])
+        dates = [p.get("date") for p in points]
+        prices = [p.get("price") for p in points if p.get("price") is not None]
 
-        latest = prices[-1]
-        prev = prices[-2] if len(prices) > 1 else latest
-        daily_change = ((latest - prev) / prev * 100) if prev else 0
-
-        # find the period-returns row for this fund
-        returns = {}
-        name = code
+        # Optional AI summary — 404 if not cached, so failure is fine
+        summary = None
         try:
-            for r in _tefas_list_rows("YAT"):
-                if _pick(r, "fonKodu", "FONKODU") == code:
-                    name = _pick(r, "fonAdi", "fonUnvan") or code
-                    returns = {
-                        "1A": _pick(r, "getiri1A", "donemGetiri1a"),
-                        "3A": _pick(r, "getiri3A", "donemGetiri3a"),
-                        "6A": _pick(r, "getiri6A", "donemGetiri6a"),
-                        "YB": _pick(r, "getiriYB", "donemGetiriyb"),
-                        "1Y": _pick(r, "getiri1Y", "donemGetiri1y"),
-                        "3Y": _pick(r, "getiri3Y", "donemGetiri3y"),
-                        "5Y": _pick(r, "getiri5Y", "donemGetiri5y"),
-                    }
-                    break
+            ai = fonoloji_get(f"/funds/{code}/ai-summary")
+            summary = ai.get("summary")
         except Exception:
-            pass  # detail page still works without the returns strip
+            pass
 
         return {
-            "code": code,
-            "name": name,
-            "price": latest,
-            "daily_change_pct": round(daily_change, 2),
-            "returns": returns,
+            "code": fund.get("code", code),
+            "name": fund.get("name", code),
+            "founder": fund.get("management_company"),
+            "category": fund.get("category"),
+            "risk_score": fund.get("risk_score"),
+            "price": fund.get("current_price"),
+            "price_date": fund.get("current_date"),
+            "daily_change_pct": pct(fund.get("return_1d")),
+            "aum": fund.get("aum"),
+            "investor_count": fund.get("investor_count"),
+            "sharpe_90": fund.get("sharpe_90"),
+            "volatility_90": pct(fund.get("volatility_90")),
+            "returns": {
+                "1A": pct(fund.get("return_1m")),
+                "3A": pct(fund.get("return_3m")),
+                "6A": pct(fund.get("return_6m")),
+                "YB": pct(fund.get("return_ytd")),
+                "1Y": pct(fund.get("return_1y")),
+                "5Y": None,  # not in the single-fund payload; history covers the chart
+            },
+            "ai_summary": summary,
             "history": {"dates": dates, "prices": prices},
         }
 
@@ -417,7 +390,12 @@ def fund_detail(code: str, months: int = 12):
         raise HTTPException(status_code=502, detail=f"fund detail fetch failed for {code}: {e}")
 
 
-# NOTE: build_row() below also needs sanitizing, since BIST/US quote data
-# can carry NaN in the same way (e.g. missing volume or change_pct fields).
-# clean() is applied at the response boundary above, so it covers both
-# /quotes and /funds without needing to touch build_row() itself.
+@app.get("/market-live")
+def market_live():
+    """BIST100, USD/TRY, EUR/TRY snapshot via Fonoloji — handy for the ticker tape."""
+    def builder():
+        return fonoloji_get("/market/live")
+    try:
+        return clean(cached("market-live", builder))
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"market live fetch failed: {e}")
