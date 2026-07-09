@@ -23,10 +23,10 @@
     </a>
     <nav class="nav">
       <a href="/fonlar">Fonlar</a>
-      <a href="#hisseler">Hisseler</a>
-      <a href="#akis">Para akışı</a>
-      <a href="#makro">Makro</a>
-      <a href="#araclar">Araçlar</a>
+      <a href="/#hisseler">Hisseler</a>
+      <a href="/#akis">Para akışı</a>
+      <a href="/#makro">Makro</a>
+      <a href="/#araclar">Araçlar</a>
     </nav>
     <div class="topbar-right">
       <div class="live-dot" title="Canlı"><span></span>CANLI</div>
@@ -53,7 +53,7 @@
         </p>
         <div class="search">
           <input id="searchInput" type="text" placeholder="Fon kodu, hisse ya da kategori ara…" />
-          <button class="primary-btn">Ara</button>
+          <button class="primary-btn" id="araBtn">Ara</button>
         </div>
         <div class="pop">
           <span class="pop-label">Popüler</span>
@@ -129,5 +129,13 @@
   </footer>
 
   <script src="/assets/app.js"></script>
+  <script>
+  (function(){
+    var i=document.getElementById('searchInput'), b=document.getElementById('araBtn');
+    function go(){ var q=(i.value||'').trim(); window.location.href='/fonlar'+(q?('?q='+encodeURIComponent(q)):''); }
+    if(b) b.addEventListener('click', go);
+    if(i) i.addEventListener('keydown', function(e){ if(e.key==='Enter') go(); });
+  })();
+  </script>
 </body>
 </html>

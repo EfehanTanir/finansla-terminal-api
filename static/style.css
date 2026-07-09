@@ -269,3 +269,9 @@ main{max-width:1240px;margin:0 auto;padding:0 clamp(16px,4vw,48px) 80px}
 .mover-link:hover .code,.tf:hover .info b{color:var(--brand)}
 .sp-link{display:inline-block;margin-top:16px;color:var(--brand);font-size:14px}
 .sp-link:hover{text-decoration:underline}
+
+
+/* mini up/down chip next to a code */
+.delta-chip{font-family:var(--mono);font-size:10px;font-weight:600;padding:1px 5px;border-radius:5px;margin-left:6px;vertical-align:middle;letter-spacing:0}
+.delta-chip.up{color:var(--up);background:rgba(47,208,122,.12)}
+.delta-chip.down{color:var(--down);background:rgba(255,84,112,.12)}

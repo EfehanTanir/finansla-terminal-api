@@ -3,6 +3,7 @@
   const pct = (n) => (n >= 0 ? "+" : "") + Number(n).toFixed(2) + "%";
   const cls = (n) => (n >= 0 ? "up-v" : "down-v");
   const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const deltaChip = (n) => { const up = Number(n) >= 0; return `<span class="delta-chip ${up ? "up" : "down"}">${up ? "\u25B2" : "\u25BC"} ${Math.abs(Number(n)).toFixed(2)}%</span>`; };
 
   // ---------------- Screener ----------------
   async function initScreener() {
@@ -10,6 +11,8 @@
     const qEl = document.getElementById("q");
     let sort = "aum";
     let timer;
+    const urlQ = new URLSearchParams(location.search).get("q");
+    if (urlQ) qEl.value = urlQ;
 
     async function refresh() {
       rows.innerHTML = `<div class="loading">Yükleniyor…</div>`;
@@ -19,7 +22,7 @@
         if (!data.length) { rows.innerHTML = `<div class="loading">Sonuç yok.</div>`; return; }
         rows.innerHTML = data.map((f) => `
           <a class="fund-row" href="/fon/${encodeURIComponent(f.code)}">
-            <span class="fr-info"><b>${esc(f.code)}</b><i>${esc(f.name)}</i>
+            <span class="fr-info"><b>${esc(f.code)} ${deltaChip(f.return_1m_pct)}</b><i>${esc(f.name)}</i>
               <small>${esc(f.category)}</small></span>
             <span class="mono fr-price">${esc(f.price)}</span>
             <span class="mono ${cls(f.return_1m_pct)}">${pct(f.return_1m_pct)}</span>
